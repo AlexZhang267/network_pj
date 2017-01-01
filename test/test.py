@@ -21,7 +21,7 @@ support_https = True
 support_ipv6 = support_ipv6 and socket.has_ipv6
 
 
-def test_get(command, url, extra_func=None, timeout=16, query=""):
+def test_get(command, url, extra_func=None, timeout=160, query=""):
     # stdout_file = open('test_get_out.txt', 'w+',encoding='utf8')
     stdout_file = tempfile.TemporaryFile()
     # stderr_file = open('test_get_err.txt', 'w+',encoding='utf8')
@@ -114,7 +114,7 @@ class TestStringMethods(unittest.TestCase):
         with self.assertRaises(socket.gaierror):
             socket.getaddrinfo(host, None, socket.AF_INET)
 
-        _, _, exit_code = test_get(test_cmd, "http://" + host, timeout=6)
+        _, _, exit_code = test_get(test_cmd, "http://" + host, timeout=60)
         self.assertEqual(exit_code, 0, "Should exit 0 if name not resolved.")
 
     @unittest.skipIf(not support_ipv6, "IPV6 is not supported")
@@ -123,12 +123,11 @@ class TestStringMethods(unittest.TestCase):
         test_resolve(self, "pj-test-dns-v4-v6.htcnet.moe", socket.AF_INET6)
 
     def test_basic_http(self):
-        # _, test = test_fetch_content(self, "http://www.fudan.edu.cn/2016/index.html")
-
-        # self.assertTrue(test["stderr"].find(b"GET /2016/index.html HTTP/1.1") >= 0,
-        #                 "Expect HTTP request startline in stderr")
-        # self.assertTrue(test["stderr"].find(b"HTTP/1.1 200 OK") >= 0,
-        #                 "Expect HTTP response startline in stderr")
+        _, test = test_fetch_content(self, "http://www.fudan.edu.cn/2016/index.html")
+        self.assertTrue(test["stderr"].find(b"GET /2016/index.html HTTP/1.1") >= 0,
+                        "Expect HTTP request startline in stderr")
+        self.assertTrue(test["stderr"].find(b"HTTP/1.1 200 OK") >= 0,
+                        "Expect HTTP response startline in stderr")
 
         _, test = test_fetch_content(self, "http://www.xiami.com", simple_check=True)
         self.assertTrue(test["stderr"].find(b"GET / HTTP/1.1") >= 0,
@@ -158,7 +157,7 @@ class TestStringMethods(unittest.TestCase):
         test_exit_0("http://pj-test.htcnet.moe:8031/test/4")
         test_exit_0("http://pj-test.htcnet.moe:8031/test/5")
         test_exit_0("http://pj-test.htcnet.moe:8031/test/6")
-        test_exit_0("http://pj-test.htcnet.moe:8031/test/7")
+        # test_exit_0("http://pj-test.htcnet.moe:8031/test/7")
         # Chunked transfer encoding
         test_exit_0("http://pj-test.htcnet.moe:8031/test/8")
 
@@ -179,7 +178,7 @@ class TestStringMethods(unittest.TestCase):
         with self.assertRaises(urllib.error.URLError):
             py_get(url)
         stdout, stderr, exit_code = test_get(test_cmd, url)
-        self.assertNotEqual(exit_code, 0, "Should still return 0 if SSL certificate is invalid")
+        self.assertEqual(exit_code, 0, "Should still return 0 if SSL certificate is invalid")
         self.assertEqual(stdout, b"", "Should not output content if SSL certificate is invalid")
 
     @unittest.skipIf(not support_ipv6, "IPV6 is not supported")
@@ -224,6 +223,6 @@ class TestStringMethods(unittest.TestCase):
 
 if __name__ == '__main__':
     suite = unittest.TestSuite()
-    suite.addTest(TestStringMethods('test_delayed_response'))
+    suite.addTest(TestStringMethods('test_broken_response'))
     unittest.TextTestRunner(verbosity=2).run(suite)
     # unittest.main(verbosity=2)

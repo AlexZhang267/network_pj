@@ -17,12 +17,16 @@ class HttpResponse(object):
         if type(self.data) != bytes:
             self.data = self.data.encode('utf8')
         crlf = self.data.find(b"\r\n\r\n")
+        if crlf==-1:
+            return '',''
         self.start_line = self.data[0:crlf + 4]
         self.message_body = self.data[crlf + 4:]
         self.header = self.__parse_header()
         encoding = self.header.get(b'Content-Encoding')
 
         transfer_coding = self.header.get(b'Transfer-Encoding')
+
+        content_length = self.header.get(b'Content-Length')
 
         # 检查是否有chunk
         if transfer_coding == b' chunked':
@@ -31,6 +35,9 @@ class HttpResponse(object):
         # 检查是否是gzip压缩的
         if encoding == b' gzip':
             self.__decode_gzip()
+
+        # sys.stderr.write(content_length)
+        # sys.stderr.write("+++++++")
 
         return self.start_line, self.message_body
 
@@ -49,12 +56,16 @@ class HttpResponse(object):
         self.message_body = f.read()
 
     def __decode_chunked(self):
+        # r = True
         chunk_data = ''
         while 1:
             index = self.message_body.find(b'\r\n')
             chunk_size = int(self.message_body[:index], 16)
-            if chunk_size == 0:
+            if chunk_size <= 0:
                 break
+            # elif chunk_size<0:
+            #     break
+
             chunk_data += self.message_body[index + 2:index + 2 + chunk_size]
             self.message_body = self.message_body[index + 2 + chunk_size + 2:]
         return chunk_data
@@ -108,17 +119,25 @@ class HttpResolver(object):
         sys.stderr.write(request)
 
         host = res[1]
+        tmp = host.split(':')
+        port = -1
+        if len(tmp) > 1:
+            host = tmp[0]
+            port = int(tmp[1])
 
         dns_client = DNSClient()
         response_queue = dns_client.dns_lookup(host=host)
-        dns_response = ''
         ip = '0'
+        response = ''
         while not response_queue.empty():
             dns_response = response_queue.get()
             for answer in dns_response.answers:
-                if len(answer)!=0:
-                    ip = answer[0]
-                    break
+                try:
+                    if len(answer)!=0:
+                        ip = answer[0]
+                        break
+                except Exception:
+                    pass
 
             if dns_response.get_qtype()==1:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -126,16 +145,12 @@ class HttpResolver(object):
                 s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
             s.settimeout(5)
             if scheme=='http':
-                port = 80
-                tmp = host.split(':')
-                if len(tmp) > 1:
-                    host = tmp[0]
-                    port = int(tmp[1])
+                if port == -1:
+                    port = 80
 
                 try:
                     s.connect((ip, port))
                     s.send(request)
-                    response = ''
                     while 1:
                         data = s.recv(1024)
                         if not len(data):
@@ -146,17 +161,13 @@ class HttpResolver(object):
                     # sys.stderr.write(str(e))
                     pass
             elif scheme == 'https':
-                port = 443
-                tmp = host.split(':')
-                if len(tmp) > 1:
-                    host = tmp[0]
-                    port = int(tmp[1])
+                if port==-1:
+                    port = 443
                 try:
                     s.connect((ip, port))
                     ssl_socket = socket.ssl(s)
                     ssl_socket.write(request)
 
-                    response = ''
                     while 1:
                         # data = s.recv(1024)
                         data = ssl_socket.read(1024)

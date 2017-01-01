@@ -6,6 +6,7 @@ import tempfile
 import sys
 import io
 import urllib.request
+import requests
 
 test_cmd = "python ../http_part/httpresolver.py"
 # test_cmd = "curl --verbose --silent -m 5 --compress --max-redirs 0 -H 'Accept-Encoding: gzip'"
@@ -222,3 +223,4 @@ if __name__ == '__main__':
     url = "http://www.fudan.edu.cn/2016/index.html"
     test = {}
     test["data"], test["stderr"], test["exit_code"] = test_get(test_cmd, url)
+    requests.get(url,verify=True)
